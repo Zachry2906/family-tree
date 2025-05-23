@@ -61,17 +61,43 @@ export const uploadPhoto = (req, res) => {
 
 // Improved family data retrieval to include spouse relationships
 export const getFamily = async (req, res) => {
+    const userId = req.id; // Ambil userId dari token yang sudah diverifikasi
+    console.log("GetFamily - User ID from token:", userId);
+    
+    // Verify we have a valid userId
+    if (!userId) {
+        console.error("GetFamily - Missing userId in request");
+        return res.status(401).json({ error: "Authentication required - userId not found" });
+    }
+    
     try {
         // First, get all persons with their basic information
+        console.log("GetFamily - Fetching persons for userId:", userId);
         const persons = await Person.findAll({
+            where: { name: userId },
             attributes: [
-                'id', 'name', 'email', 'gender', 'born', 'photo', 'fid', 'mid'
+                'id', 'name', 'email', 'gender', 'born', 'photo', 'fid', 'mid', 'userId'
             ]
         });
 
-        // Then, get all spouse relationships
+        console.log(`GetFamily - Found ${persons.length} person records for userId: ${userId}`);
+        
+        // For debugging purposes, if zero records found, check if records exist for other userIds
+        if (persons.length === 0) {
+            const allUsers = await Person.findAll({
+                attributes: ['userId'],
+                group: ['userId']
+            });
+            console.log("Available userIds in database:", allUsers.map(u => u.userId));
+        }
+
+        // Then, get all spouse relationships for this user's persons only
+        const personIds = persons.map(p => p.id);
         const allRelationships = await Relationship.findAll({
-            where: { relationship_type: 'spouse' }
+            where: { 
+                relationship_type: 'spouse',
+                person_id: personIds  // Only get relationships for this user's persons
+            }
         });
 
         // Create a map of person_id to array of spouse IDs
@@ -92,6 +118,7 @@ export const getFamily = async (req, res) => {
             };
         });
 
+        console.log(`GetFamily - Returning ${familyData.length} family members for userId: ${userId}`);
         res.json(familyData);
     } catch (error) {
         console.error('Error in getFamily:', error);
@@ -101,7 +128,7 @@ export const getFamily = async (req, res) => {
 
 export const createFamily = async (req, res) => {
     const transaction = await Person.sequelize.transaction();
-
+    const userId = req.id; // Ambil userId dari token yang sudah diverifikasi
     try {
         let { id, name, email, gender, born, photo, fid, mid, pids } = req.body;
 
@@ -117,7 +144,8 @@ export const createFamily = async (req, res) => {
             born,
             photo,
             fid,
-            mid
+            mid,
+            userId
         }, { transaction });
 
         // Handle spouse relationships if provided
@@ -157,7 +185,8 @@ export const createFamily = async (req, res) => {
                 photo,
                 fid,
                 mid,
-                pids: pids || []
+                pids: pids || [],
+                userId
             }
         };
 
@@ -285,6 +314,7 @@ export const getFamilyById = async (req, res) => {
 
 export const updateFamily = async (req, res) => {
     const transaction = await Person.sequelize.transaction();
+    const userId = req.id; // Ambil userId dari token yang sudah diverifikasi
 
     try {
         const personId = req.params.id;
@@ -308,7 +338,8 @@ export const updateFamily = async (req, res) => {
                     name: "Unknown Father",
                     gender: "male",
                     born: null,
-                    photo: null
+                    photo: null,
+                    userId : userId
                 }, { transaction });
                 validFid = newFather.id;
             }
@@ -322,7 +353,8 @@ export const updateFamily = async (req, res) => {
                     name: "Unknown Mother",
                     gender: "female",
                     born: null,
-                    photo: null
+                    photo: null,
+                    userId : userId
                 }, { transaction });
                 validMid = newMother.id;
             }
@@ -377,7 +409,8 @@ export const updateFamily = async (req, res) => {
             born,
             photo: updatedPhoto,
             fid: validFid,
-            mid: validMid
+            mid: validMid,
+            userId : userId
         }, { transaction });
 
         // Handle spouse relationships if provided
@@ -448,7 +481,8 @@ export const updateFamily = async (req, res) => {
                 photo: updatedPhoto,
                 fid: validFid,
                 mid: validMid,
-                pids: pids || []
+                pids: pids || [],
+                userId
             }
         });
     } catch (error) {

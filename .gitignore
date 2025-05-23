@@ -3,3 +3,4 @@ package-lock.json
 view/assets
 server.js
 assets
+.env

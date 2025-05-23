@@ -1,5 +1,150 @@
+// JWT Authentication Variables
+const BASE_URL = 'http://localhost:3000'; // Sesuaikan dengan URL backend Anda
+let token = "";
+let expire = "";
+let name = "";
+let id = "";
+
+// Function untuk decode JWT (tanpa library)
+function decodeJWT(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error("Error decoding JWT:", e);
+    return null;
+  }
+}
+
+// Function untuk memperbarui informasi user dari token
+function updateUserFromToken() {
+  token = localStorage.getItem('token') || "";
+  if (token) {
+    try {
+      const decoded = decodeJWT(token);
+      expire = decoded.exp;
+      name = decoded.name;
+      id = decoded.id;
+    } catch (e) {
+      token = "";
+      expire = "";
+      name = "";
+      id = "";
+    }
+  } else {
+    console.log("Tokedcdcdc");
+  }
+}
+
+// Initialize user info from token saat halaman dimuat
+updateUserFromToken();
+
+// Function untuk memeriksa dan memperbarui token jika diperlukan
+async function checkAndRefreshToken() {
+  const currentDate = new Date();
+  console.log("Current Date:", currentDate);
+  
+  // Cek apakah token sudah expire
+  if (!token || expire * 1000 < currentDate.getTime()) {
+    try {
+      // Request token baru
+      const response = await $.ajax({
+        url: `${BASE_URL}/api/token`,
+        type: 'GET',
+        xhrFields: {
+          withCredentials: true // Ini penting untuk mengirim cookies
+        }
+      });
+      
+      console.log("Token refreshed:", response);
+      
+      // Update token
+      token = response.accessToken;
+      localStorage.setItem('token', token);
+      
+      // Decode token baru
+      const decoded = decodeJWT(token);
+      expire = decoded.exp;
+      name = decoded.name;
+      id = decoded.id;
+      
+      return token;
+    } catch (err) {
+      console.error("Error refreshing token:", err);
+      alert("Session expired, please login again");
+      // Redirect ke halaman login
+      window.location.href = '/login';
+      throw err;
+    }
+  }
+  return token;
+}
+
+// Get token synchronously (use existing value or from localStorage)
+function getToken() {
+  if (!token) {
+    updateUserFromToken();
+  }
+  return token;
+}
+
+// Preload token before any AJAX calls
+(async function() {
+  try {
+    await checkAndRefreshToken();
+  } catch (err) {
+    console.error("Failed to preload token:", err);
+  }
+})();
+
+// Setup jQuery AJAX untuk selalu menggunakan token
+$.ajaxSetup({
+  beforeSend: function(xhr, settings) {
+    // Skip untuk beberapa jenis request yang tidak perlu token
+    if (settings.url === `${BASE_URL}/api/token` || settings.url.indexOf('/login') > -1) {
+      return;
+    }
+    
+    // Use token synchronously - no async/await here
+    const currentToken = getToken();
+    if (currentToken) {
+      console.log("Setting Authorization header with token:", currentToken);
+      xhr.setRequestHeader('Authorization', `Bearer ${currentToken}`);
+    }
+  },
+  // Ensure we're sending credentials (cookies) with cross-domain requests
+  xhrFields: {
+    withCredentials: true
+  },
+  complete: function(xhr) {
+    // Log headers sent for debugging
+    console.log("Request headers sent:", xhr.getAllResponseHeaders());
+  }
+});
+
+// Make sure we refresh token before important operations
+async function ensureValidToken() {
+  try {
+    await checkAndRefreshToken();
+    return true;
+  } catch (error) {
+    console.error("Failed to ensure valid token:", error);
+    return false;
+  }
+}
+
+// Inisialisasi Family Tree
 var options = getOptions();
-loadFamilyTree();
+
+// Make sure we have valid token before loading tree
+(async function() {
+  await ensureValidToken();
+  loadFamilyTree();
+})();
 
 // Define node menu template
 var nodeMenu = {
@@ -41,6 +186,26 @@ var chart = new FamilyTree(document.getElementById('tree'), {
         ]
     }
 });
+
+
+    $("#logout").click(function (e) {
+      e.preventDefault();
+      $.ajax({
+        url: `${BASE_URL}/api/logout`,
+        method: "DELETE",
+        contentType: "application/json",
+        success: function () {
+          window.location.href = "index.html"; // Redirect ke halaman tree
+        },
+        error: function (xhr) {
+          if (xhr.responseJSON && xhr.responseJSON.message) {
+            $("#msg").text(xhr.responseJSON.message);
+          } else {
+            $("#msg").text("Logout failed. Please try again.");
+          }
+        }
+      });
+    });
 
 // Format birth date
 chart.on('field', function (sender, args) {
@@ -133,23 +298,25 @@ chart.on('add', function (sender, node) {
 function addNewNode() {
     var node = { id: 1, name: "Nama anda", gender: "male" };
 
-    $.ajax({
-        url: '/api/family',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(node),
-        success: function(newPerson) {
-            console.log('Family member added:', newPerson);
-            loadFamilyTree(function() {
-                // Highlight or focus on the new node if needed
-                if (newPerson && newPerson.data && newPerson.data.id) {
-                    chart.center(newPerson.data.id);
-                }
-            });
-        },
-        error: function(xhr, status, error) {
-            console.error('Error adding family member:', error);
-        }
+    ensureValidToken().then(() => {
+        $.ajax({
+            url: '/api/family',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(node),
+            success: function(newPerson) {
+                console.log('Family member added:', newPerson);
+                loadFamilyTree(function() {
+                    // Highlight or focus on the new node if needed
+                    if (newPerson && newPerson.data && newPerson.data.id) {
+                        chart.center(newPerson.data.id);
+                    }
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error('Error adding family member:', error);
+            }
+        });
     });
 }
 
@@ -229,20 +396,21 @@ chart.onUpdateNode(function (args) {
 function deleteNode(nodeId) {
     console.log('Delete node:', nodeId);
     if (confirm('Are you sure you want to delete this family member?')) {
-        // Delete node from database
-        $.ajax({
-            url: `/api/family/${nodeId}`,
-            type: 'DELETE',
-            success: function(response) {
-                console.log('Family member deleted from database:', response);
-                // Remove node from chart
-                chart.removeNode(nodeId);
-                // Reload tree to ensure all relationships are updated
-                loadFamilyTree();
-            },
-            error: function(xhr, status, error) {
-                console.error('Error deleting family member:', error);
-            }
+        ensureValidToken().then(() => {
+            $.ajax({
+                url: `/api/family/${nodeId}`,
+                type: 'DELETE',
+                success: function(response) {
+                    console.log('Family member deleted from database:', response);
+                    // Remove node from chart
+                    chart.removeNode(nodeId);
+                    // Reload tree to ensure all relationships are updated
+                    loadFamilyTree();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error deleting family member:', error);
+                }
+            });
         });
     }
 }
@@ -250,26 +418,30 @@ function deleteNode(nodeId) {
 // Load family data from API and load into chart
 function loadFamilyTree(callback) {
     console.log('Loading family tree');
-    $.ajax({
-        url: '/api/family',
-        type: 'GET',
-        success: function(data) {
-            // Check if data is valid before loading
-            if (Array.isArray(data)) {
-                chart.load(data);
-                console.log('Family tree loaded with', data.length, 'members');
+    
+    // First ensure we have valid token
+    ensureValidToken().then(() => {
+        $.ajax({
+            url: '/api/family',
+            type: 'GET',
+            success: function(data) {
+                // Check if data is valid before loading
+                if (Array.isArray(data)) {
+                    chart.load(data);
+                    console.log('Family tree loaded with', data.length, 'members');
 
-                // Execute callback if provided
-                if (typeof callback === 'function') {
-                    callback();
+                    // Execute callback if provided
+                    if (typeof callback === 'function') {
+                        callback();
+                    }
+                } else {
+                    console.error('Invalid data format received:', data);
                 }
-            } else {
-                console.error('Invalid data format received:', data);
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading family data:', error);
             }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error loading family data:', error);
-        }
+        });
     });
 }
 

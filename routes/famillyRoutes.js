@@ -10,25 +10,24 @@ import {
     updateFamily,
     deleteFamily,
     uploadPhoto   
-} from "../controllers/FamillyController.js";
+} from "../controllers/famillyController.js";
+import { verifyToken } from "../middleware/VerifyToken.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Routes  family
-router.get("/family", getFamily);                  // Mendapatkan semua data keluarga
-router.post("/family", createFamily);              // Membuat entri keluarga baru
-router.get("/family/:id", getFamilyById);          // Mendapatkan data keluarga berdasarkan ID
-router.put("/family/:id", updateFamily);           // Memperbarui data keluarga
-router.delete("/family/:id", deleteFamily);        // Menghapus data keluarga
+router.get("/family", verifyToken, getFamily);
+router.post("/family", verifyToken, createFamily);
+router.get("/family/:id", verifyToken, getFamilyById);
+router.put("/family/:id", verifyToken, updateFamily);
+router.delete("/family/:id", verifyToken, deleteFamily);
 
-// Routes relationships
-router.get("/relationships", getRelationships);    // Mendapatkan data relasi
-router.post("/relationship", createRelationship);  // Membuat relasi baru
+router.get("/relationships", verifyToken, getRelationships);
+router.post("/relationship", verifyToken, createRelationship);
 
-router.post("/upload-photo", uploadPhoto);         // Mengupload foto
+router.post("/upload-photo", verifyToken, uploadPhoto);
 
 // Route view
 router.get('/view', (req, res) => {

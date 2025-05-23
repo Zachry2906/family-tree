@@ -35,7 +35,15 @@ const Person = db.define("person", {
     mid: {
         type: Sequelize.INTEGER,
         allowNull: true
-    }
+    },
+    userId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+            model: "users", // Nama tabel user
+            key: "id",
+      },
+    },
 }, {
     timestamps: false
 });

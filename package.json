@@ -8,8 +8,13 @@
   },
   "dependencies": {
     "@balkangraph/familytree.js": "^1.9.45",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "ejs": "^3.1.10",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.2",
     "mysql2": "^3.14.0",
     "nodemon": "^3.1.9",

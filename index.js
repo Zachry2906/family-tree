@@ -3,6 +3,9 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import famillyRoutes from './routes/famillyRoutes.js';
+import cookieParser from 'cookie-parser';
+import userRoutes from './routes/userRoutes.js';
+import "dotenv/config"; // Import dotenv untuk mengakses variabel lingkungan
 import { initializeModels } from './model/index.js'; // Import fungsi sinkronisasi
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,7 +13,15 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-app.use(cors());
+app.set("view engine", "ejs");
+
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: "http://localhost:3000/view", // <- Diganti sama alamat front-end
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.use('/view', express.static(path.join(__dirname, 'view')));
@@ -22,6 +33,7 @@ app.get('/view', (req, res) => {
 
 // Gunakan route user dengan prefix "/api"
 app.use('/api', famillyRoutes);
+app.use('/api', userRoutes);
 
 // Sinkronisasi model sebelum server berjalan
 initializeModels().then(() => {
