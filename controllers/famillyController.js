@@ -74,7 +74,7 @@ export const getFamily = async (req, res) => {
         // First, get all persons with their basic information
         console.log("GetFamily - Fetching persons for userId:", userId);
         const persons = await Person.findAll({
-            where: { name: userId },
+            where: { userId: userId },
             attributes: [
                 'id', 'name', 'email', 'gender', 'born', 'photo', 'fid', 'mid', 'userId'
             ]
@@ -342,6 +342,10 @@ export const updateFamily = async (req, res) => {
                     userId : userId
                 }, { transaction });
                 validFid = newFather.id;
+                // // ambil id ayah yang baru dibuat
+                // // hapus id ayah yang lama, karena waktu buat di fe langsung buat 2 node
+                // const deletePrevieousId = await Person.findByPk(validFid - 1, { transaction });
+                // await deletePrevieousId.destroy();
             }
         }
 
@@ -356,7 +360,9 @@ export const updateFamily = async (req, res) => {
                     photo: null,
                     userId : userId
                 }, { transaction });
-                validMid = newMother.id;
+                    validMid = newMother.id;
+                    // const deletePrevieousId = await Person.findByPk(validMid - 1, { transaction });
+                    // await deletePrevieousId.destroy();
             }
         }
 

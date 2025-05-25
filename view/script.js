@@ -1,49 +1,85 @@
-// JWT Authentication Variables
-const BASE_URL = 'http://localhost:3000'; // Sesuaikan dengan URL backend Anda
-let token = "";
-let expire = "";
-let name = "";
-let id = "";
+/**
+ * ==============================================
+ * OTENTIKASI JWT & MANAJEMEN TOKEN
+ * ==============================================
+ */
 
-// Function untuk decode JWT (tanpa library)
+// URL dasar untuk backend API
+const BASE_URL = 'http://localhost:3000';
+
+// Variabel global untuk menyimpan informasi user dari token
+let token = "";    // Token JWT aktif
+let expire = "";   // Waktu kedaluwarsa token
+let name = "";     // Nama user dari token
+let id = "";       // ID user dari token
+
+/**
+ * Mendekode token JWT tanpa library eksternal
+ * 
+ * @param {string} token - Token JWT yang akan didekode
+ * @returns {object|null} - Objek hasil dekode payload JWT atau null jika gagal
+ */
 function decodeJWT(token) {
   try {
+    // Ambil bagian payload dari token (segment kedua)
     const base64Url = token.split('.')[1];
+    
+    // Konversi dari Base64URL ke Base64 standar
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
+    
+    // Dekode Base64 menjadi string JSON dan parsing
+    const jsonPayload = decodeURIComponent(
+      atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join('')
+    );
+    
+    // Parse JSON menjadi objek JavaScript
     return JSON.parse(jsonPayload);
   } catch (e) {
-    console.error("Error decoding JWT:", e);
+    console.error("Error saat mendekode JWT:", e);
     return null;
   }
 }
 
-// Function untuk memperbarui informasi user dari token
+/**
+ * Memperbarui informasi user dari token yang tersimpan di localStorage
+ * Fungsi ini mengatur variabel global token, expire, name, dan id
+ */
 function updateUserFromToken() {
+  // Ambil token dari localStorage atau string kosong jika tidak ada
   token = localStorage.getItem('token') || "";
+  
   if (token) {
     try {
+      // Dekode token untuk mendapatkan informasi user
       const decoded = decodeJWT(token);
-      expire = decoded.exp;
-      name = decoded.name;
-      id = decoded.id;
+      expire = decoded.exp;  // Waktu kedaluwarsa dalam format Unix timestamp
+      name = decoded.name;   // Nama user
+      id = decoded.id;       // ID user
     } catch (e) {
+      // Reset semua informasi user jika terjadi error
       token = "";
       expire = "";
       name = "";
       id = "";
     }
   } else {
-    console.log("Tokedcdcdc");
+    console.log("Token tidak ditemukan di localStorage");
   }
 }
 
 // Initialize user info from token saat halaman dimuat
 updateUserFromToken();
 
-// Function untuk memeriksa dan memperbarui token jika diperlukan
+/**
+ * Memeriksa dan memperbarui token jika diperlukan
+ * 
+ * Fungsi ini akan mengecek apakah token sudah kedaluwarsa,
+ * jika ya, maka akan melakukan request untuk mendapatkan token baru.
+ * 
+ * @returns {string} - Token yang valid
+ */
 async function checkAndRefreshToken() {
   const currentDate = new Date();
   console.log("Current Date:", currentDate);
@@ -92,7 +128,7 @@ function getToken() {
   return token;
 }
 
-// Preload token before any AJAX calls
+// preload token saat halaman dimuat
 (async function() {
   try {
     await checkAndRefreshToken();
@@ -126,7 +162,11 @@ $.ajaxSetup({
   }
 });
 
-// Make sure we refresh token before important operations
+/**
+ * Memastikan token selalu valid sebelum melakukan operasi penting
+ * 
+ * @returns {boolean} - True jika token valid, False jika gagal
+ */
 async function ensureValidToken() {
   try {
     await checkAndRefreshToken();
@@ -140,51 +180,46 @@ async function ensureValidToken() {
 // Inisialisasi Family Tree
 var options = getOptions();
 
-// Make sure we have valid token before loading tree
+// pastikan token valid sebelum memuat pohon keluarga
 (async function() {
   await ensureValidToken();
   loadFamilyTree();
 })();
 
-// Define node menu template
+// Definisikan nodeMenu tanpa konfirmasi untuk delete
 var nodeMenu = {
     edit: { text: 'Edit' },
     details: { text: 'Details' },
-    delete: { text: 'Delete', icon: '✕', onClick: deleteNode }
+    delete: { text: 'Hapus', icon: '✕', onClick: deleteNodeWithoutConfirm }
 };
 
 // Chart configuration
 var chart = new FamilyTree(document.getElementById('tree'), {
-    showXScroll: FamilyTree.scroll.visible,
-    showYScroll: FamilyTree.scroll.visible,
-    mouseScrool: FamilyTree.action.zoom,
-    scaleInitial: options.scaleInitial,
-    mode: 'dark',
-    template: 'john',
-    roots: [3],
-    nodeMenu: nodeMenu,
-    nodeTreeMenu: true,
-    nodeBinding: {
-        field_0: 'name',
-        field_1: 'born',
-        img_0: 'photo'
-    },
-    editForm: {
-        titleBinding: "name",
-        photoBinding: "photo",
-        elements: [
-            { type: 'textbox', label: 'Full Name', binding: 'name' },
-            { type: 'textbox', label: 'Email Address', binding: 'email' },
-            [
-                { type: 'textbox', label: 'Phone', binding: 'phone' },
-                { type: 'date', label: 'Date Of Birth', binding: 'born' }
-            ],
-            [
-                { type: 'textbox', label: 'City', binding: 'city' },
-            ],
-            { type: 'textbox', label: 'Photo Url', binding: 'photo', btn: 'Upload' },
-        ]
-    }
+  showXScroll: FamilyTree.scroll.visible,
+  showYScroll: FamilyTree.scroll.visible,
+  mouseScrool: FamilyTree.action.zoom,
+  scaleInitial: options.scaleInitial,
+  mode: 'dark',
+  template: 'john',
+  roots: [3],
+  nodeMenu: nodeMenu,
+  nodeTreeMenu: true,
+  nodeBinding: {
+    field_0: 'name',
+    field_1: 'born',
+    img_0: 'photo'
+  },
+  editForm: {
+    titleBinding: "name",
+    photoBinding: "photo",
+    addMore: false,
+    elements: [
+      { type: 'textbox', label: 'Nama Lengkap', binding: 'name' },
+      { type: 'textbox', label: 'Alamat Email', binding: 'email' },
+      { type: 'date', label: 'Tanggal Lahir', binding: 'born' },
+      { type: 'textbox', label: 'URL Foto', binding: 'photo', btn: 'Upload' },
+    ]
+  }
 });
 
 
@@ -215,28 +250,28 @@ chart.on('field', function (sender, args) {
     }
 });
 
-// Photo upload handler
+// aplud foto handler
 chart.editUI.on('element-btn-click', function(sender, args) {
-    // Create file input element
+    // membuat input file untuk memilih foto
     var fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.style.display = 'none';
     document.body.appendChild(fileInput);
 
-    // Trigger click event to open file selection dialog
+    // trigger klik untuk membuka dialog file
     fileInput.click();
 
-    // Handle when file is selected
+    // handler untuk menangani file yang dipilih
     fileInput.onchange = function(e) {
         var file = e.target.files[0];
         if (!file) return;
 
-        // Create form data for upload
+        // membuat FormData untuk mengirim file
         var formData = new FormData();
         formData.append('photo', file);
 
-        // Upload photo to server endpoint
+        // uplaod foto ke server
         $.ajax({
             url: '/api/upload-photo',
             type: 'POST',
@@ -246,7 +281,7 @@ chart.editUI.on('element-btn-click', function(sender, args) {
             success: function(response) {
                 console.log('Photo uploaded:', response);
 
-                // Update photo field value with newly uploaded photo URL
+                // upadte input foto di form edit
                 var photoInput = document.querySelector('[data-binding="photo"]');
                 if (photoInput) {
                     photoInput.value = response.photoUrl;
@@ -255,7 +290,7 @@ chart.editUI.on('element-btn-click', function(sender, args) {
                     var changeEvent = new Event('change');
                     photoInput.dispatchEvent(changeEvent);
 
-                    // Update preview if it exists
+                    // perbarui preview foto jika ada
                     var photoPreview = photoInput.parentNode.querySelector('img') ||
                         photoInput.parentNode.querySelector('.photo-preview img');
                     if (photoPreview) {
@@ -281,23 +316,22 @@ chart.editUI.on('element-btn-click', function(sender, args) {
                 alert('Failed to upload photo. Please try again.');
             }
         });
-        // Remove file input after use
+        // buang input file setelah selesai
         document.body.removeChild(fileInput);
     };
 });
 
-// Event handler to add first node when chart is empty
+// handler untuk menambahkan node baru jika chart kosong
 chart.on('add', function (sender, node) {
-    if (chart.nodes.length >= 1) return; // If there are other nodes, skip
-    // If chart is empty, add new node
+    if (chart.nodes.length >= 1) return; // jika chart sudah ada node, tidak perlu menambah
+    // jika chart kosong, tambahkan node baru
     addNewNode();
     return false;
 });
 
-// Function to add new node when chart is empty
+// fungsi untuk menambahkan node baru
 function addNewNode() {
     var node = { id: 1, name: "Nama anda", gender: "male" };
-
     ensureValidToken().then(() => {
         $.ajax({
             url: '/api/family',
@@ -305,9 +339,9 @@ function addNewNode() {
             contentType: 'application/json',
             data: JSON.stringify(node),
             success: function(newPerson) {
-                console.log('Family member added:', newPerson);
+                console.log('Family member added test:', newPerson);
                 loadFamilyTree(function() {
-                    // Highlight or focus on the new node if needed
+                    // highlight atau center pada node baru
                     if (newPerson && newPerson.data && newPerson.data.id) {
                         chart.center(newPerson.data.id);
                     }
@@ -320,19 +354,18 @@ function addNewNode() {
     });
 }
 
-// Handler for node updates
+// handler untuk memperbarui node ketika ada perubahan
 chart.onUpdateNode(function (args) {
     let promises = [];
-
-    // Add new data (POST)
+    // menambahkan node baru (POST)
     if (args.addNodesData.length) {
         args.addNodesData.forEach(function(person) {
-            // Don't send null for fid/mid if they don't exist
+            //jangan sertakan fid dan mid jika tidak ada
             if (!person.fid) delete person.fid;
             if (!person.mid) delete person.mid;
-            console.log('Adding node:', person);
+            console.log('Menambahkan node:', person);
 
-            // Add family member to database and track the promise
+            // tambah anggota keluarga ke database
             let promise = new Promise((resolve, reject) => {
                 $.ajax({
                     url: '/api/family',
@@ -340,11 +373,11 @@ chart.onUpdateNode(function (args) {
                     contentType: 'application/json',
                     data: JSON.stringify(person),
                     success: function(newPerson) {
-                        console.log('Family member added:', newPerson);
+                        console.log('Anggota keluarga berhasil ditambahkan:', newPerson);
                         resolve(newPerson);
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error adding family member:', error);
+                        console.error('Gagal menambahkan anggota keluarga:', error);
                         reject(error);
                     }
                 });
@@ -354,11 +387,10 @@ chart.onUpdateNode(function (args) {
         });
     }
 
-    // Update data (PUT)
+    // Perbarui data yang sudah ada (PUT)
     if (args.updateNodesData.length) {
         args.updateNodesData.forEach(function(person) {
-            console.log('Updating node:', person);
-
+            console.log('Memperbarui node:', person);
             let promise = new Promise((resolve, reject) => {
                 $.ajax({
                     url: `/api/family/${person.id}`,
@@ -366,80 +398,101 @@ chart.onUpdateNode(function (args) {
                     contentType: 'application/json',
                     data: JSON.stringify(person),
                     success: function(updatedPerson) {
-                        console.log('Family member updated:', updatedPerson);
+                        console.log('Anggota keluarga berhasil diperbarui:', updatedPerson);
                         resolve(updatedPerson);
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error updating family member:', error);
+                        console.error('Gagal memperbarui anggota keluarga:', error);
                         reject(error);
                     }
                 });
             });
-
             promises.push(promise);
         });
     }
 
-    // Wait for all operations to complete before reloading the tree
+    // menunggu semua operasi selesai sebelum memuat ulang pohon
     Promise.all(promises)
         .then(() => {
-            console.log('All node operations completed, reloading family tree');
+            console.log('Semua operasi node selesai, memuat ulang pohon keluarga');
             loadFamilyTree();
         })
         .catch(error => {
-            console.error('Error during node operations:', error);
-            loadFamilyTree(); // Still try to reload even if there were errors
+            console.error('Terjadi kesalahan saat operasi node:', error);
+            loadFamilyTree(); // Tetap coba muat ulang meskipun terjadi kesalahan
         });
 });
 
-// Delete node from chart and database
+// hapus node dari chart dan database
 function deleteNode(nodeId) {
-    console.log('Delete node:', nodeId);
-    if (confirm('Are you sure you want to delete this family member?')) {
+    console.log('Menghapus node:', nodeId);
+    if (confirm('Apakah Anda yakin ingin menghapus anggota keluarga ini?')) {
         ensureValidToken().then(() => {
             $.ajax({
                 url: `/api/family/${nodeId}`,
                 type: 'DELETE',
                 success: function(response) {
-                    console.log('Family member deleted from database:', response);
-                    // Remove node from chart
+                    console.log('Anggota keluarga berhasil dihapus dari database:', response);
+                    // Hapus node dari chart
                     chart.removeNode(nodeId);
-                    // Reload tree to ensure all relationships are updated
+                    // Muat ulang pohon untuk memastikan semua hubungan terupdate
                     loadFamilyTree();
                 },
                 error: function(xhr, status, error) {
-                    console.error('Error deleting family member:', error);
+                    console.error('Gagal menghapus anggota keluarga:', error);
                 }
             });
         });
     }
 }
 
-// Load family data from API and load into chart
+// Fungsi hapus node tanpa konfirmasi
+function deleteNodeWithoutConfirm(nodeId) {
+    console.log('Menghapus node:', nodeId);
+    ensureValidToken().then(() => {
+        $.ajax({
+            url: `/api/family/${nodeId}`,
+            type: 'DELETE',
+            success: function(response) {
+                console.log('Anggota keluarga berhasil dihapus dari database:', response);
+                // Hapus node dari chart
+                chart.removeNode(nodeId);
+                // Muat ulang pohon untuk memastikan semua hubungan terupdate
+                loadFamilyTree();
+            },
+            error: function(xhr, status, error) {
+                console.error('Gagal menghapus anggota keluarga:', error);
+            }
+        });
+    });
+}
+
+// Muat data keluarga dari API dan tampilkan di chart
 function loadFamilyTree(callback) {
-    console.log('Loading family tree');
+    console.log('Memuat pohon keluarga');
     
-    // First ensure we have valid token
+    // Pastikan token valid terlebih dahulu
     ensureValidToken().then(() => {
         $.ajax({
             url: '/api/family',
             type: 'GET',
             success: function(data) {
-                // Check if data is valid before loading
+                // cek apakah data yang diterima valid
+                console.log('Data keluarga diterima:', data);
                 if (Array.isArray(data)) {
                     chart.load(data);
-                    console.log('Family tree loaded with', data.length, 'members');
+                    console.log('Pohon keluarga berhasil dimuat dengan', data.length, 'anggota');
 
-                    // Execute callback if provided
+                    // Jalankan callback jika ada
                     if (typeof callback === 'function') {
                         callback();
                     }
                 } else {
-                    console.error('Invalid data format received:', data);
+                    console.error('Format data yang diterima tidak valid:', data);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error loading family data:', error);
+                console.error('Gagal memuat data keluarga:', error);
             }
         });
     });

@@ -49,8 +49,9 @@
     </div>
   </section>
 
+      <script src="familytree.js"></script>
   <script>
-    const BASE_URL = "http://localhost:3000"; // Ganti dengan URL asli
+    const BASE_URL = "http://localhost:3000";
 
     $("#loginForm").submit(function (e) {
       e.preventDefault();
@@ -64,7 +65,7 @@
         contentType: "application/json",
         data: JSON.stringify({ name, password }),
         success: function () {
-          window.location.href = "tree.html"; // Redirect ke halaman tree
+          window.location.href = "tree.html";
         },
         error: function (xhr) {
           if (xhr.responseJSON && xhr.responseJSON.message) {
